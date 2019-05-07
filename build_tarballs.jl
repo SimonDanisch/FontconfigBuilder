@@ -13,38 +13,18 @@ sources = [
 ]
 
 # Bash recipe for building across all platforms
+ # weird issue with uuid/uuid.h not being found without C_INCLUDE_PATH
 script = raw"""
-	if [ $target = "aarch64-linux-gnu" ]; then
-	  ln -s /opt/aarch64-linux-gnu/aarch64-linux-gnu/sys-root/lib/ld-linux-aarch64.so.1 /lib/ld-linux-aarch64.so.1
-	  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/x86_64-linux-gnu/x86_64-linux-gnu/sys-root/lib64:/opt/aarch64-linux-gnu/aarch64-linux-gnu/sys-root/lib64
-	fi
-	
-	if [ $target = "powerpc64le-linux-gnu" ]; then
-	  ln -s /opt/powerpc64le-linux-gnu/powerpc64le-linux-gnu/sys-root/lib64/ld64.so.2 /lib64/ld64.so.2
-	  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/x86_64-linux-gnu/x86_64-linux-gnu/sys-root/lib64:/opt/powerpc64le-linux-gnu/powerpc64le-linux-gnu/sys-root/lib64
-	fi
-	
-	if [ $target = "arm-linux-gnueabihf" ]; then
-	  ln -s /opt/arm-linux-gnueabihf/arm-linux-gnueabihf/sys-root/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
-	  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/x86_64-linux-gnu/x86_64-linux-gnu/sys-root/lib64:/opt/arm-linux-gnueabihf/arm-linux-gnueabihf/sys-root/lib
-	fi
-	
-	cd $WORKSPACE/srcdir/fontconfig-2.13.1/
-	export CFLAGS=-I/workspace/destdir/include
-	./configure --prefix=$prefix --host=$target
-	make
-	make install
+cd $WORKSPACE/srcdir/fontconfig-2.13.1/
+export C_INCLUDE_PATH=$prefix/include:$C_INCLUDE_PATH
+./configure --prefix=$prefix --host=$target
+make
+make install
 """
 
 # These are the platforms we will build for by default, unless further
 # platforms are passed in on the command line
-platforms = [
-    Linux(:i686, libc=:glibc),
-    Linux(:x86_64, libc=:glibc),
-    Linux(:armv7l, libc=:glibc, call_abi=:eabihf),
-    Linux(:aarch64, libc=:glibc),
-    Linux(:powerpc64le, libc=:glibc),
-]
+platforms = supported_platforms()
 
 # The products that we will ensure are always built
 products(prefix) = [
@@ -70,4 +50,3 @@ dependencies = [
 
 # Build the tarballs, and possibly a `build.jl` as well.
 build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies)
-
